@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+
+<link href="/css/reset.css" th:href="@{/css/reset.css}" rel="stylesheet" />
+<link href="/css/style.css" th:href="@{/css/style.css}" rel="stylesheet" />
+
+<title>ジラソーレ</title>
+</head>
+<body>
+
+<header th:insert="fragments/page_header::pageHeader"></header>
+
+<main>
+
+  <div class="container destination">
+    <div>
+      <h2 th:if="${destinations != null && destinations.size() > 0}">宛先を選択し、決済を完了します。</h2>
+      <p class="info" th:if="${destinations != null && destinations.size() > 0}">宛先の新規登録、削除も可能です。</p>
+      <p class="info" id="noDestinationMsg" th:if="${destinations == null || destinations.size() == 0}">宛先情報がありません。新規登録してください。</p>
+    </div>
+    <table class="destination" th:if="${destinations != null && destinations.size() > 0}" >
+      <tr>
+        <th>選択</th><th>宛先氏名</th><th>住所</th><th>電話番号</th>
+      </tr>
+      <tr th:each="destination, st: ${destinations}" >
+        <td><input type="radio" name="id" th:checked="${st.index==0}" th:value="${destination.id}" class="radio" /></td>
+        <td>
+          <span th:text="${destination.familyName}"></span><span>　</span><span th:text="${destination.firstName}"></span>
+        </td>
+        <td th:text="${destination.address}"/>
+        <td th:text="${destination.telNumber}"/>
+      </tr>
+    </table>
+    <div id="settlementButtonArea" class="buttonArea">
+      <form name="destinationForm" action="/sunflower/destination/">
+        <button id="deleteButton" th:if="${destinations != null && destinations.size() > 0}">削除</button>
+        <button type="submit">新規宛先</button>
+        <button th:if="${destinations != null && destinations.size() > 0}" id="settlementButton">決済</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+/*
+ * 画面表示時 (onLoad) に動作する処理群
+ */
+document.addEventListener("DOMContentLoaded", event => {
+  // 宛先情報がない場合はロード時の処理はないので return する
+  const noDataElement = document.getElementById("noDestinationMsg");
+  if (noDataElement != null) return;
+  
+  document.getElementById("deleteButton").addEventListener("click", () => {
+    const checked = document.querySelector(".radio:checked");
+    let destinationId = checked.value;
+    deleteDestination(destinationId, checked);
+  });
+  
+  document.getElementById("settlementButton").addEventListener("click", () => {
+    let checked = document.querySelector(".radio:checked");
+    let destinationId = checked.value;
+    settlement(destinationId);
+  });
+});
+
+/**
+ * 宛先情報を削除する。
+ * @param destinationId 宛先情報ID
+ * @param checked 選択されたラジオボタンのオブジェクト
+ */
+function deleteDestination(destinationId, checked) {
+  // JavaにPOST送信するオブジェクトを取得・設定する
+  const postObj = {　"destinationId": destinationId　};
+  
+  /*
+   * fetch API を使用し、Javaと非同期通信(POST)を行う
+   * SUCCESS時(then)： 宛先情報を削除する
+   *　ERROR時(catch)： エラー情報を console に出力する
+   */
+  fetch("/sunflower/destination/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(postObj),
+  })
+  .then(response =>  response.text())
+  .then(result => {
+     const tr = checked.parentElement.parentElement;
+    while (tr.lastChild) {
+      tr.removeChild(tr.lastChild);
+    }
+    location.href = "/sunflower/settlement/" ;
+  })
+    .catch(error => {
+    console.error("Error: ", error);
+  });
+}
+
+/**
+ * 決済処理をおこなう
+ * @param destinationId 宛先情報ID
+ */
+function settlement(destinationId) {
+  // JavaにPOST送信するオブジェクトを取得・設定する
+  const postObj = {　"destinationId": destinationId　};
+  
+  /*
+   * fetch API を使用し、Javaと非同期通信(POST)を行う
+   * SUCCESS時(then)： 購入履歴ページに遷移する
+   *　ERROR時(catch)： エラー情報を console に出力する
+   */
+  fetch("/sunflower/settlement/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(postObj),
+  })
+  .then(response =>  response.text())
+  .then(result => {
+     location.replace("/sunflower/history/");
+  })
+  .catch(error => {
+    console.error("Error: ", error);
+  });
+}
+/*]]>*/
+</script>
+
+</body>
+</html>
